@@ -1,6 +1,4 @@
-# from the liveuser script
-# and add /ofw
-# and limit tmpfs mounts to 5%
+# limit tmpfs mounts to 5%
 cat >> /etc/fstab <<EOF
 /tmp            /tmp            tmpfs         rw,size=50m 0 0
 vartmp          /var/tmp        tmpfs         rw,size=50m 0 0
@@ -12,7 +10,7 @@ mkdir /bootpart
 
 # create olpc user
 # Provide access to ttyUSB nodes (#8434)
-/usr/sbin/useradd -m -c "olpc user" -G audio,wheel,uucp,video,dialout olpc
+/usr/sbin/useradd -m -c "olpc user" -G audio,wheel,uucp,video,dialout,lock olpc
 /usr/bin/passwd -d olpc
 
 # make sure to own home directory and relax permissions a little
@@ -54,10 +52,10 @@ SYSFONT=sun12x22
 __EOF__
 
 # OLPC custom VT layout and serial console setup (#9517, #10354)
-sed -i -e 's/mingetty/mingetty --loginpause --autologin root --noclear/' \
-	/etc/init/tty.conf
-sed -i -e 's:ACTIVE_CONSOLES=/dev/tty\[1-6\]:ACTIVE_CONSOLES=/dev/tty[1-3]:' \
-	/etc/sysconfig/init
+sed -i -e 's:/sbin/agetty.*:/sbin/agetty --login-pause --autologin root --noclear %I:' \
+	/lib/systemd/system/getty\@.service
+sed -i -e 's:/sbin/agetty.*:/sbin/agetty -L -l /bin/bash -w -n %I 115200 vt100:' \
+	/lib/systemd/system/serial-getty\@.service
 
 # Enable tmpfs mounts dictated by rwtab (#9637)
 mkdir -p /security/state
@@ -68,12 +66,22 @@ sed -i -e 's/TEMPORARY_STATE=no/TEMPORARY_STATE=yes/' \
 # Remove resolv.conf from rwtab so that it can be updated atomically (#2748)
 sed -i -e "/resolv.conf/d" /etc/rwtab
 
+# also remove /tmp, /var/log and /var/tmp from rwtab, since we put them in fstab
+sed -i -e '/\t\/tmp/d' /etc/rwtab
+sed -i -e '/\t\/var\/tmp/d' /etc/rwtab
+sed -i -e '/\t\/var\/log/d' /etc/rwtab
+
+# remove entries from rwtab that we put it in statetab below
+sed -i -e '/\t\/var\/lib\/random-seed/d' /etc/rwtab
+sed -i -e '/\t\/var\/lib\/dbus/d' /etc/rwtab
+
 # ensure temporary state directory doesn't get too fat (#9636)
 sed -i -e 's/RW_OPTIONS=/RW_OPTIONS="-o size=1M -o nr_inodes=1024"/' /etc/sysconfig/readonly-root
 
 # Things to store separately in persistent storage
 # This means these files can be writable at runtime without breaking the
-# pristine-ness of /versions/pristine
+# pristine-ness of /versions/pristine. It also means they are retained
+# over upgrades.
 cat >/etc/statetab.d/olpc <<EOF
 /etc/ssh
 /etc/sysconfig/i18n
@@ -81,17 +89,33 @@ cat >/etc/statetab.d/olpc <<EOF
 /etc/timezone
 /var/lib/dbus
 /var/lib/random-seed
+/etc/NetworkManager/system-connections
 EOF
+
+# make sure statetab is set up before recording a random seed during boot
+# https://bugzilla.redhat.com/show_bug.cgi?id=808907
+sed -i -e '/Before=/ s/$/ systemd-random-seed-load.service/' /lib/systemd/system/fedora-readonly.service
+
+# systemd stuff that is not interesting for us
+# random-seed-save: we are interested in saving a random seed, but
+# systemd actually does that during boot at systemd-random-seed-load time.
+# that is sufficient for our needs, and works around the shutdown issue
+# described at https://bugzilla.redhat.com/show_bug.cgi?id=808907#c7
+for i in fedora-loadmodules mdmonitor-takeover systemd-readahead-collect \
+		fedora-wait-storage fedora-storage-init fedora-storage-init-late \
+		fedora-autorelabel fedora-autorelabel-mark systemd-random-seed-save; do
+	ln -s /dev/null /etc/systemd/system/$i.service
+done
 
 #prefdm tweaks
-sed -i -e 's/respawn limit 10/respawn limit 3/' /etc/init/prefdm.conf
+#sed -i -e 's/respawn limit 10/respawn limit 3/' /etc/init/prefdm.conf
 
-cat >>/etc/init/prefdm.conf <<EOF
+#cat >>/etc/init/prefdm.conf <<EOF
 # make sure dcon is unfrozen if something goes wrong.
-post-stop script
-  echo 0 > /sys/devices/platform/dcon/freeze
-end script
-EOF
+#post-stop script
+#  echo 0 > /sys/devices/platform/dcon/freeze
+#end script
+#EOF
 
 # OLPC CA certificate (#9624)
 # this is used by wget, but the Web activity uses cert8.db in its own
@@ -156,12 +180,6 @@ rm -f /etc/avahi/etc/localtime
 
 # kill a load of non-interesting anacron tasks (#10247)
 chmod -x /etc/cron.daily/logrotate
-chmod -x /etc/cron.weekly/99-raid-check
-
-# suppress generation of certain SSH host keys in the same way we did
-# it on XO-1 builds, so as to reduce first boot time by several
-# seconds (#9964)
-echo "AUTOCREATE_SERVER_KEYS=RSAONLY" >> /etc/sysconfig/sshd
 
 # Fedora's initscripts packages writes /etc/adjtime without a 3rd line,
 # which makes hwclock assume that the hardware clock has local time.
@@ -181,7 +199,52 @@ find / -xdev -type f -perm 000 -exec chmod 400 {} +
 # source code as of time of writing) are not utilised.
 find /var/lib/yum/yumdb -type f -name 'from_repo_revision' -delete -o -name 'from_repo_timestamp' -delete
 
-# enable sysrq by default during development cycle
-# possibly useful for debugging phantom hangs
-sed -i -e 's/kernel.sysrq = 0/kernel.sysrq = 1/' /etc/sysctl.conf
+# enable sysrq by default, possibly useful for debugging phantom hangs
+echo "kernel.sysrq = 1" > /usr/lib/sysctl.d/10-olpc.conf
 
+# disable NetworkManager's rh-ifcfg plugin (#9789)
+# this ensures that network configs are stored in
+# /etc/NetworkManager/system-connections, which is a path that we can safely
+# put in statetab. (the rh-ifcfg path in /etc/sysconfig mixes code with data
+# and is hence not appropriate to retain over upgrades)
+sed -i -e 's/^plugins=ifcfg-rh$/plugins=keyfile/g' /etc/NetworkManager/NetworkManager.conf
+
+# set default plymouth theme
+# we do this with plymouthd.defaults so that plymouth-set-default-theme
+# could be run by the user at another point in the build process, ensuring
+# that the user preference (if specified) sticks.
+sed -i -e 's/Theme=.*/Theme=olpc/g' /usr/share/plymouth/plymouthd.defaults
+
+# disable plymouth-start service: we start plymouthd from the initramfs
+# with some special settings
+ln -s /dev/null /etc/systemd/system/plymouth-start.service
+
+# apply some special settings in the other plymouth service files until
+# we have a better solution.
+# https://bugs.freedesktop.org/show_bug.cgi?id=22239
+sed -i -e 's/plymouthd --mode=shutdown/plymouthd --mode=shutdown "--kernel-command-line=rhgb plymouth.ignore-serial-consoles"/g' /lib/systemd/system/plymouth-poweroff.service
+sed -i -e 's/plymouthd --mode=shutdown/plymouthd --mode=shutdown "--kernel-command-line=rhgb plymouth.ignore-serial-consoles"/g' /lib/systemd/system/plymouth-halt.service
+sed -i -e 's/plymouthd --mode=shutdown/plymouthd --mode=shutdown "--kernel-command-line=rhgb plymouth.ignore-serial-consoles"/g' /lib/systemd/system/plymouth-reboot.service
+
+# remove the boot-duration file since it gets changed during boot (#11862)
+rm -f /var/lib/plymouth/boot-duration
+
+# call olpc-logrotate when log file hits 1mb (#10075)
+sed -i -e 's,/var/log/messages,:omfile:$messages,' \
+	-e '/$messages/ i$outchannel messages,/var/log/messages,1048576,/usr/sbin/olpc-logrotate' \
+	/etc/rsyslog.conf
+
+# tweak upower behaviour, mostly to ignore lid events (#11815)
+sed -i -e 's/EnableWattsUpPro=true/EnableWattsUpPro=false/' \
+	-e 's/IgnoreLid=false/IgnoreLid=true/' \
+	/etc/UPower/UPower.conf
+
+# Tracker has snuck in and is autostarted by default.
+# I don't think we want this.
+# https://bugzilla.redhat.com/show_bug.cgi?id=821952
+rm -f /etc/xdg/autostart/tracker*.desktop 2>/dev/null
+
+# wtmp updating is racy on shutdown (#11952)
+# Disable it, it's not interesting for us
+rm -f /var/log/wtmp
+ln -s /dev/null /etc/systemd/system/systemd-update-utmp-shutdown.service

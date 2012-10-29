@@ -4,6 +4,7 @@ gnome-desktop
 gnome-panel
 gnome-session
 gnome-terminal
+gnome-settings-daemon
 metacity
 nautilus
 
@@ -15,13 +16,8 @@ olpc-switch-desktop
 PolicyKit-gnome
 notification-daemon
 
-# battery applet
-batti
-
 # internet
-xulrunner
-firefox
-empathy
+epiphany
 
 # office
 abiword
@@ -36,13 +32,13 @@ gimp
 # audio & video
 audacity
 totem
-totem-gstreamer
 totem-mozplugin
 
 # more desktop stuff
 file-roller
 gedit
 gnash-plugin
-NetworkManager-gnome
+network-manager-applet
+nm-connection-editor
 xdg-user-dirs-gtk
 

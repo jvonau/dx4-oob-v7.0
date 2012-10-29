@@ -3,24 +3,22 @@
 
 . $OOB__shlib
 
-add=$(read_config custom_packages add_packages)
-del=$(read_config custom_packages del_packages)
-
-if [[ -n "$add" ]]; then
+find_option_values pkgs_add custom_packages add_packages
+for pkgs in "${pkgs_add[@]}"; do
 	oIFS=$IFS
 	IFS=$'\n\t, '
-	for pkg in $add; do
+	for pkg in $pkgs; do
 		echo "$pkg"
 	done
 	IFS=$oIFS
-fi
+done
 
-if [[ -n "$del" ]]; then
+find_option_values pkgs_del custom_packages del_packages
+for pkgs in "${pkgs_del[@]}"; do
 	oIFS=$IFS
 	IFS=$'\n\t, '
-	for pkg in $del; do
+	for pkg in $pkgs; do
 		echo "-$pkg"
 	done
 	IFS=$oIFS
-fi
-
+done

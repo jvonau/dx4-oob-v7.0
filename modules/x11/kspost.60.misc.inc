@@ -76,23 +76,5 @@ EOF
 
 chown -R olpc:olpc /home/olpc/.scim
 
-if [ -e /usr/lib/xulrunner-*/greprefs/all.js ]; then
-	# disable Firefox's OGG plugin in favour of totem, because no hw accel is
-	# available. #10152
-	sed -i -e 's:\(media.ogg.enabled",\) true:\1 false:g' /usr/lib/xulrunner-*/greprefs/all.js
-
-	# sl#2259: The layout.css.dpi default setting results in a too big layout and fonts
-	sed -i -e 's:\(layout.css.dpi",\) -1:\1 96:' /usr/lib/xulrunner-*/greprefs/all.js
-fi
-
-# remove unneccesary package mesa-dri-drivers (#11036)
-rpm -e --nodeps mesa-dri-drivers
-
-# remove gstreamer pulse element so that totem doesn't try to use it (#10158)
-[ -e /usr/lib/gstreamer-0.10/libgstpulse.so ] && rm /usr/lib/gstreamer-0.10/libgstpulse.so
-
-# if totem is installed, set default volume to 100% (#10158)
-gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --dir-exists /apps/totem && gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --type int --set /apps/totem/volume 100
-
 exit 0
 

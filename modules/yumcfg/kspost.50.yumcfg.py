@@ -3,7 +3,6 @@
 
 import os
 import sys
-import urllib2
 from gzip import GzipFile
 from StringIO import StringIO
 
@@ -11,6 +10,8 @@ import ooblib
 
 addrepos = []
 excludes = set()
+
+farch = ooblib.read_config('global', 'fedora_arch').strip()
 
 # read in repos
 for var in os.environ:
@@ -25,11 +26,11 @@ for var in os.environ:
 for for_excludes, name, url in addrepos:
     if not for_excludes:
         continue
-    fd = urllib2.urlopen(url + "/repodata/primary.xml.gz")
+    fd = ooblib.cachedurlopen(url + "/repodata/primary.xml.gz")
     data = fd.read()
     fd.close()
     fd = GzipFile(fileobj=StringIO(data))
-    ooblib.add_packages_from_xml(fd, excludes)
+    ooblib.add_packages_from_xml(fd, excludes, farch)
 
 # write shell code to generate yum repo files
 for for_excludes, name, url in addrepos:

@@ -4,7 +4,6 @@
 import os
 import sys
 import ooblib
-import urllib2
 from gzip import GzipFile
 from StringIO import StringIO
 
@@ -12,10 +11,7 @@ excludepkgs = set()
 addexcludes = ooblib.read_config('repos', 'add_excludes_to')
 fedora = ooblib.read_config('repos', 'fedora')
 fver = ooblib.read_config('global', 'fedora_release').strip()
-farch = ooblib.read_config('repos', 'fedora_arch')
-
-if farch:
-    farch = farch.strip()
+farch = ooblib.read_config('global', 'fedora_arch').strip()
 
 def add_to_excludes(baseurl, addexcludes):
     print >>sys.stderr, "Reading repository information for", baseurl
@@ -23,7 +19,7 @@ def add_to_excludes(baseurl, addexcludes):
     url = baseurl + '/' + repomd['primary']
 
     print >>sys.stderr, "Reading package information from", url
-    fd = urllib2.urlopen(url)
+    fd = ooblib.cachedurlopen(url)
     data = fd.read()
     fd.close()
     fd = GzipFile(fileobj=StringIO(data))

@@ -9,6 +9,8 @@ import os.path
 import urllib
 import urllib2
 import urlparse
+import time
+import pickle
 
 from bitfrost.update import microformat
 
@@ -34,48 +36,94 @@ if install_activities:
     for suffix in suffixes:
         if len(suffix) > 0:
             grpurl = urlparse.urljoin(baseurl + "/", urllib.quote(suffix))
+            grpurlcache = os.path.join(cache, os.path.basename(baseurl)
+                                              + '-' + suffix + ".html")
         else:
             grpurl = baseurl
+            grpurlcache = os.path.join(cache, os.path.basename(baseurl)
+                                              + ".html")
 
-        print >>sys.stderr, "Trying group URL", grpurl
-        try:
-            name, desc, results = microformat.parse_url(grpurl)
-        except urllib2.HTTPError, e:
-            if e.code == 404:
+        if ooblib.cacheonly:
+            print >>sys.stderr, "Trying group URL cache file", grpurlcache
+            if os.path.exists(grpurlcache):
+                name, desc, results = pickle.load(open(grpurlcache))
+            else:
                 continue
-            raise e
-        if len(results) == 0 or (name is None and desc is None):
-            continue
-        print >>sys.stderr, "Found activity group:", name
+        else:
+            print >>sys.stderr, "Trying group URL", grpurl
+            try:
+                name, desc, results = microformat.parse_url(grpurl)
+            except urllib2.HTTPError, e:
+                if e.code == 404:
+                    continue
+                raise e
+            if len(results) == 0 or (name is None and desc is None):
+                continue
+            print >>sys.stderr, "Found activity group:", name
+            pickle.dump([name, desc, results], open(grpurlcache, 'w'))
 
-        for name, info in results.items():
-            (version, url) = microformat.only_best_update(info)
-            print >>sys.stderr, "Examining %s v%s: %s" % (name, version, url)
-            fd = urllib2.urlopen(url)
-            headers = fd.info()
-            if not 'Content-length' in headers:
-                raise Exception("No content length for %s" % url)
-            length = int(headers['Content-length'])
-            path = urlparse.urlsplit(fd.geturl())[2]
+        if results:
+            break #process only the first URL (or cached file)
+
+    if not results:
+        print >>sys.stderr, "No Activity Group URL found"
+        sys.exit(1)
+
+    for name, info in results.items():
+        (version, url) = microformat.only_best_update(info)
+        print >>sys.stderr, "Examining %s v%s: %s" % (name, version, url)
+
+        if ooblib.cacheonly:
+            path = urlparse.urlsplit(url)[2]
             path = os.path.basename(path)
 
             localpath = os.path.join(cache, path)
             if os.path.exists(localpath):
-                localsize = os.stat(localpath).st_size
-                if localsize == length:
-                    print >>sys.stderr, "Not downloading, already in cache."
-                    ooblib.install_sugar_bundle(localpath)
-                    continue
+                print >>sys.stderr, "Using: ", localpath
+                ooblib.install_sugar_bundle(localpath)
+                continue
+            else:
+                print >>sys.stderr, "Cannot find cache for ", url
+                sys.exit(1)
 
-            print >>sys.stderr, "Downloading (%dkB)..." % (length/1024)
-            localfd = open(localpath, 'w')
-            localfd.write(fd.read())
-            fd.close()
-            localfd.close()
-            ooblib.install_sugar_bundle(localpath)
+        fd = None
+        for attempts in range(5):
+            if attempts > 0:
+                print >>sys.stderr, 'Retrying.'
+                time.sleep(1)
+            try:
+                fd = urllib2.urlopen(url)
+                break
+            except urllib2.HTTPError, e:
+                print >>sys.stderr, 'HTTP error: ', e.code
+            except urllib2.URLError, e:
+                print >>sys.stderr, 'Network or server error: ', e.reason
 
-        # only process the first working URL
-        break
+        if not fd:
+            print >>sys.stderr, 'Could not reach ', url
+            sys.exit(1)
+
+        headers = fd.info()
+        if not 'Content-length' in headers:
+            raise Exception("No content length for %s" % url)
+        length = int(headers['Content-length'])
+        path = urlparse.urlsplit(fd.geturl())[2]
+        path = os.path.basename(path)
+
+        localpath = os.path.join(cache, path)
+        if os.path.exists(localpath):
+            localsize = os.stat(localpath).st_size
+            if localsize == length:
+                print >>sys.stderr, "Not downloading, already in cache."
+                ooblib.install_sugar_bundle(localpath)
+                continue
+
+        print >>sys.stderr, "Downloading (%dkB)..." % (length/1024)
+        localfd = open(localpath, 'w')
+        localfd.write(fd.read())
+        fd.close()
+        localfd.close()
+        ooblib.install_sugar_bundle(localpath)
 
 if systemwide:
     print "mkdir -p $INSTALL_ROOT/etc/olpc-update"

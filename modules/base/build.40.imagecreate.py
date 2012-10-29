@@ -23,14 +23,18 @@ def main():
     make_iso = ooblib.read_config_bool('base', 'make_iso')
     if make_iso:
         print "Building ISO image..."
-        creator = imgcreate.LiveImageCreator(ks, name, name)
+        creator = imgcreate.LiveImageCreator(ks, name, name,
+                                             tmpdir=ooblib.builddir,
+                                             cacheonly=ooblib.cacheonly)
         compress = ooblib.read_config_bool('base', 'compress_iso')
         if compress is None:
             compress = False
         creator.skip_compression = not compress
     else:
         print "Building directly into FS image..."
-        creator = imgcreate.LoopImageCreator(ks, 'imgcreatefs', name)
+        creator = imgcreate.LoopImageCreator(ks, 'imgcreatefs', name,
+                                             tmpdir=ooblib.builddir,
+                                             cacheonly=ooblib.cacheonly)
 
     try:
         creator.mount(cachedir=cache_dir)

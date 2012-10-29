@@ -5,25 +5,19 @@
 compress=$(read_config sd_card_image compress_disk_image)
 keep_img=$(read_config sd_card_image keep_disk_image)
 make_zd=$(read_config sd_card_image make_zd)
+osname=$(image_name)
 
-oIFS=$IFS
-IFS=$'\n'
-for line in $(env); do
-	[[ "${line:0:24}" == "CFG_sd_card_image__size_" ]] || continue
-	vals=${line#*=}
-	disk_size=${vals%,*}
-	ext=
-	expr index "$vals" ',' &>/dev/null && ext=${vals#*,}
+function make_zd() {
+	local ext=$1
 	[ -z "$ext" ] && ext="zd"
-	osname=$(image_name)
-	output_name=$osname.$ext
-	diskimg=$intermediatesdir/$output_name.disk.img
-	output=$outputdir/$output_name
+
+	local output_name=$osname.$ext
+	local diskimg=$intermediatesdir/$output_name.disk.img
+	local output=$outputdir/$output_name
 
 	if [[ "$make_zd" == 1 ]]; then
 		echo "Making ZD image for $output_name..."
 		$bindir/zhashfs 0x20000 sha256 $diskimg $output.zsp $output
-		rm -f $diskimg.fill
 
 		echo "Creating MD5sum of $output_name..."
 		pushd $outputdir >/dev/null
@@ -40,5 +34,16 @@ for line in $(env); do
 			mv $diskimg $outputdir
 		fi
 	fi
+
+}
+
+find_option_values sizes sd_card_image size
+for vals in "${sizes[@]}"; do
+	disk_size=${vals%,*}
+	ext=
+	expr index "$vals" ',' &>/dev/null && ext=${vals#*,}
+	make_zd $ext
 done
-IFS=$oIFS
+
+# When no size options were specified, we make a default image.
+[[ ${#sizes[@]} == 0 ]] && make_zd

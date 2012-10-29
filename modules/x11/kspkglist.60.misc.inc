@@ -1,8 +1,8 @@
 #fonts
-abyssinica-fonts
-dejavu-lgc-sans-fonts
-dejavu-lgc-sans-mono-fonts
-dejavu-lgc-serif-fonts
+sil-abyssinica-fonts
+dejavu-sans-fonts
+dejavu-sans-mono-fonts
+dejavu-serif-fonts
 khmeros-base-fonts
 lohit-devanagari-fonts
 nafees-web-naskh-fonts
@@ -19,5 +19,4 @@ scim-pinyin
 # sound backend
 alsa-utils
 gstreamer-plugins-good
-
-
+gstreamer1-plugins-good

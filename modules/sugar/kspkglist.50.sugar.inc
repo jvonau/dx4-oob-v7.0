@@ -1,12 +1,20 @@
 # sugar desktop
 sugar
+sugar-base
+sugar-toolkit
+sugar-toolkit-gtk3
+
+# sugar control panels
+sugar-cp-datetime
+sugar-cp-frame
+sugar-cp-language
+sugar-cp-modemconfiguration
+sugar-cp-network
+sugar-cp-power
 
 # additional sugar packages
 libxml2-python
-hulahop
-pyabiword
-gnome-python2-evince
-udisks
+webkitgtk3
 espeak
 etoys
 evince-djvu
@@ -19,19 +27,22 @@ csound-python
 pygame
 python-alsaaudio
 squeak-vm
+python-cjson
+
 # Browse
-gnome-python2-gnome
 gnash-plugin
 totem-mozplugin
+
 # Terminal
 vte
+
 # dependencies for Epub support in Read
-pywebkitgtk
 python-BeautifulSoup
-python-lxml
 olpc-library
+
 # for Tuxmath activity
 SDL_Pango
+
 # for Physics
 pybox2d
 

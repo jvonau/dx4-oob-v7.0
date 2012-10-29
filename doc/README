@@ -54,7 +54,31 @@ release was made.
 
 
 Usage:
-	olpc-os-builder <path to build config>
+	olpc-os-builder [options] <path to build config> [path to build config...]
+
+
+Offline use:
+
+olpc-os-builder naturally involves a fair amount of downloading in its work.
+These downloads are cached, meaning that while the first run will do a lot
+of downloading, subsequent runs will reuse the locally cached content.
+
+However, those subsequent runs will still go online in order to check that
+cached content is up-to-date. This can be time consuming, especially
+on slow connections.
+
+If you want olpc-os-builder to trust its local caches, and not even go
+online to check that they are current, you can provide the --cache-only
+command-line option.
+
+For obvious reasons, cache-only mode requires you to have previously run
+the same build configuration in "normal" mode beforehand (i.e. without
+--cache-only specified), so that caches are populated.
+
+Be aware that less cache validation is performed during --cache-only runs.
+This means that corrupt caches or truncated files could be treated as good
+in cache-only mode, whereas such problems are generally detected and
+corrected when connectivity is used.
 
 
 Configuration:
@@ -63,23 +87,36 @@ Various build configurations can be found in the examples directory
 included with the distribution, including configurations used to build
 OLPC OS releases.
 
-Build configuration files have a series of sections, each section
-title is enclosed in square brackets.  Inside each section, there are
-options.  For example, "mysection" below has one option, named
+Build configuration files specify a series of modules, each module
+title being enclosed by square brackets.  Inside each module, there are
+options.  For example, "mymodule" below has one option, named
 "option1" with value "myvalue":
 
-	[mysection]
+	[mymodule]
 	option1=myvalue
 
 Options can reside on multiple lines, provided that all lines beyond
 the first one are indented, e.g.:
 
-	[mysection]
+	[mymodule]
 	option1=this is
 		an option
 		that spans 4 lines
 		but lines 2 through 4 must be indented
 	option2=foo
+
+The modules selected by your build configuration file correspond to modules
+shipped by olpc-os-builder. A module is loaded simply by specifying it in
+the build configuration. You do not have to specify any options in the cases
+when the default settings meet your needs, or when the module has no options,
+e.g.:
+
+	[sugar]
+	[gnome]
+
+Multiple configuration files can be specified. They will be parsed in the
+order provided (i.e. later config files can override values from earlier
+ones).
 
 Interpolation (basic assignment and use of variables) can be used, according
 to Python's SafeConfigParser documentation.
@@ -88,7 +125,7 @@ Default variables automatically provided:
 
 oob_config_dir
 
-	The directory where the currently selected config file resides
+	The directory where the first specified config file resides
 
 In general, each section that can exist in the configuration file
 corresponds to a specific module.  The section name is the same as the
@@ -103,6 +140,11 @@ fedora_release
 
     The numeric release number of the Fedora operating system to base
     the OLPC OS build on.  For example, 11 for Fedora 11.
+
+fedora_arch
+
+    The processor architecture to use for Fedora package selection.
+    See http://mirrors.fedoraproject.org/ for the available values.
 
 olpc_version_major
 
@@ -122,23 +164,27 @@ olpc_version_release
     in the OS image.  For example, in the OLPC OS 10.1.0 release, this
     would be 0.
 
-image_name
-
-    The naming scheme to use for the output files. The value of this field
-    must include "%%d", this will be replaced with the build number.
-    For example, a value of "per%%d-6" would result the output being called
-    "per703-6" for build number 703. The default value is "os%%d".
-    The reason that 2 percentage signs are needed is because RawConfigParser
-    is in use; a % therefore triggers the INI interpolation feature, unless
-    presented in the escaped form %%.
-
 customization_info
+
+    This identifier will be displayed in the Sugar control panel and
+    in other places on the system, to indicate the source of the OS
+    build.
 
     Please set this to a string that indicates your identity, to make
     clear that the resultant build is a modified version of OLPC's
     official release.  For example, you could use something like
     "customized for Paraguay" when producing an OS build for OLPC's
     Paraguayan deployment.
+
+customization_tag
+
+    This tag will be included in the names of the output files, as a quick
+    way of identifying origin. The default value is "xx".
+
+    Please set this to a tag (one or two characters) representing your
+    identity. Your two-letter country code may be a good choice here.
+    For example, for the OLPC Paraguay project, "py" would be a sensible
+    choice. "o" is used by OLPC.
 
 target_platform
 
@@ -149,15 +195,6 @@ langs
 
     A set of languages to support in the resultant OS image.
 
-modules
-
-    A comma-separated selection of modules to include in the build.
-
-modules_<ANYTHING>
-
-    Additional modules to include (allowing you to append to the list of
-    modules in an additional configuration file)
-
 
 In general, options need to be set with care.  Aim to stick with the
 values shown in the examples where possible.  For example, if you were
@@ -165,6 +202,17 @@ to exclude the "base" module from the build then you will get strange
 results.  Also, you cannot arbitrarily change fedora_release without
 adapting all of the module code to work with the ever-changing
 components of each official Fedora release.
+
+
+Output:
+
+At the end of the process, a series of filenames are saved in an output
+directory. The path to this directory is printed at the end of the process.
+Files within this directory are named according to a version scheme
+encompassing the major and minor version number, the build numer, the target
+laptop model, and the customisation tag. See
+http://wiki.laptop.org/go/Release_Process#Version_numbering for more details
+on this scheme.
 
 
 Design goals:

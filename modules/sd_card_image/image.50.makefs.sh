@@ -1,10 +1,11 @@
-# Copyright (C) 2009 One Laptop Per Child
+# Copyright (C) 2009 One Laptop per Child
 # Licensed under the terms of the GNU GPL v2 or later; see COPYING for details.
 
 . $OOB__shlib
 versioned_fs=$(read_config base versioned_fs)
 buildnr=$(read_buildnr)
 BLOCK_SIZE=512
+ROOT_PARTITION_START_BLOCK=139264
 NUM_HEADS=16
 NUM_SECTORS_PER_TRACK=62
 
@@ -18,13 +19,49 @@ umount $ROOT &>/dev/null || :
 mkdir -p $BOOT
 mkdir -p $ROOT
 
+# Automatically determine a size for the output disk image (including root
+# and boot partitions).
+#
+# This is calculated by examining how much space was used in the intermediate
+# filesystem image, and by adding a small amount of free space for safety.
+auto_size()
+{
+	local rawfs=$intermediatesdir/rawfs.img
+	local edump=$(dumpe2fs "$rawfs")
+	local bsize=$(echo "$edump" | grep "^Block size:")
+	local bcount=$(echo "$edump" | grep "^Block count:")
+	local freeblocks=$(echo "$edump" | grep "^Free blocks:")
+
+	# Remove textual labels, we just want the numbers
+	bsize="${bsize##* }"
+	bcount="${bcount##* }"
+	freeblocks="${freeblocks##* }"
+
+	local usedblocks=$(( bcount - freeblocks ))
+	local usedsize=$(( usedblocks * bsize ))
+
+	# In my testing, the new image has about 100mb free even when we try
+	# to match the size exactly. So we use the exact size; if we find that
+	# we need to add some 'safety' space later, we can add it.
+	#local newsize=$(( usedsize + (20*1024*1024) ))
+	local newsize=$usedsize
+
+	# Increase by size of boot partition
+	(( newsize += $ROOT_PARTITION_START_BLOCK * $BLOCK_SIZE ))
+
+	echo $newsize
+}
 
 make_image()
 {
-	local vals=$1
-	local disk_size=${vals%,*}
-	local ext=
-	expr index "$vals" ',' &>/dev/null && ext=${vals#*,}
+	local disk_size=$1
+	local ext=$2
+	[ -z "$ext" ] && ext="zd"
+
+	if [ "$disk_size" = "auto" ]; then
+		disk_size=$(auto_size)
+	fi
+
 	echo "Making image of size $disk_size"
 
 	echo "Create disk and partitions..."
@@ -32,43 +69,37 @@ make_image()
 	local num_blocks=$(($disk_size / $BLOCK_SIZE))
 	local num_cylinders=$(($num_blocks / $NUM_HEADS / $NUM_SECTORS_PER_TRACK))
 	local image_size=$(($num_cylinders * $NUM_HEADS * $NUM_SECTORS_PER_TRACK * $BLOCK_SIZE))
-	local os_part1_begin=$(($NUM_SECTORS_PER_TRACK * $BLOCK_SIZE))
 
-	[ -z "$ext" ] && ext="zd"
 	local img=$intermediatesdir/$(image_name).$ext.disk.img
 
-        dd if=/dev/urandom of=$img.fill bs=4096 count=1 2>/dev/null
-        rm -f $img.fill.2mb
-        for x in $(seq 512); do cat $img.fill >> $img.fill.2mb; done
-        local n=$(($image_size / (1048576 * 2) + 1))
-        rm -f $img
-        dd if=/dev/zero of=$img bs=1M count=1 2>/dev/null
-        for x in $(seq $n); do cat $img.fill.2mb >> $img; done
-        truncate --size=$image_size $img
-        rm -f $img.fill.2mb
+	dd if=/dev/zero of=$img bs=$BLOCK_SIZE count=0 seek=$(($image_size / $BLOCK_SIZE))
 
 	/sbin/sfdisk -S 32 -H 32 --force -uS $img <<EOF
 8192,131072,83,*
-139264,,,
+$ROOT_PARTITION_START_BLOCK,,,
 EOF
-	# sfdisk output truncates paths that are too long
-	pushd $intermediatesdir
-	local img_sectors=$(sfdisk -uS -l $(basename $img) | grep img2 | awk '{print $4}')
-	popd
-	echo "(1 losetup error is normal here)"
-	losetup -d /dev/loop6 || :
-	losetup -o $((8192 * $BLOCK_SIZE)) --sizelimit $((131072 * $BLOCK_SIZE)) /dev/loop6 $img
-	echo "(1 losetup error is normal here)"
-	losetup -d /dev/loop7 || :
-	losetup -o $(((8192 + 131072) * $BLOCK_SIZE)) --sizelimit $(($img_sectors * $BLOCK_SIZE)) /dev/loop7 $img
+
+	disk_loop=$(losetup --show --find --partscan $img)
+	boot_loop="${disk_loop}p1"
+	root_loop="${disk_loop}p2"
+
+	# Work around occasional failure for loop partitions to appear
+	# http://marc.info/?l=linux-kernel&m=134271282127702&w=2
+	local i=0
+	while ! [ -e "$boot_loop" ]; do
+		partx -a -v $disk_loop
+		sleep 1
+		(( ++i ))
+		[ $i -ge 10 ] && break
+	done
 
 	echo "Create filesystems..."
-	mke2fs -O dir_index,^resize_inode -L Boot -F /dev/loop6
-	mount /dev/loop6 $BOOT
+	mke2fs -O dir_index,^resize_inode -L Boot -F $boot_loop
+	mount $boot_loop $BOOT
 
-	mkfs.ext4 -O dir_index,^huge_file -E resize=8G -m1 -L OLPCRoot /dev/loop7
-	tune2fs -o journal_data_ordered /dev/loop7
-	mount /dev/loop7 $ROOT
+	mkfs.ext4 -O dir_index,^huge_file -E resize=8G -m1 -L OLPCRoot $root_loop
+	tune2fs -o journal_data_ordered $root_loop
+	mount $root_loop $ROOT
 
 	echo "Copy in root filesystem..."
 	cp -a $fsmount/* $ROOT
@@ -101,19 +132,19 @@ EOF
 
 	umount $ROOT
 	umount $BOOT
-	losetup -d /dev/loop6 || :
-	losetup -d /dev/loop7 || :
+	losetup -d $disk_loop || :
 
 	# FIXME: any value to running e2fsck now? maybe with -D ?
 }
 
 
-oIFS=$IFS
-IFS=$'\n'
-for line in $(env); do
-	[[ "${line:0:24}" == "CFG_sd_card_image__size_" ]] || continue
-	val=${line#*=}
-	make_image $val
+find_option_values sizes sd_card_image size
+for val in "${sizes[@]}"; do
+	disk_size=${val%,*}
+	ext=
+	expr index "$vals" ',' &>/dev/null && ext=${vals#*,}
+	make_image $disk_size $ext
 done
-IFS=$oIFS
 
+# If no sizes were specified, create an image with automatic size.
+[[ ${#sizes[@]} == 0 ]] && make_image auto
