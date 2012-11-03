@@ -126,7 +126,7 @@ EOF
 
 	umount $ROOT
 	umount $BOOT
-	losetup -d $disk_loop || :
+	kpartx -d $disk_loop || :
 
 	# FIXME: any value to running e2fsck now? maybe with -D ?
 }
