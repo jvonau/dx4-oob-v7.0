@@ -192,3 +192,18 @@ gconftool-2 --direct --config-source=xml:readwrite:/etc/gconf/gconf.xml.defaults
 # enable ad-hoc icon 
 gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --type bool --set /desktop/sugar/network/adhoc true
 
+# Create an alternative tmp dir that is not in ramdisk, empty on every boot
+echo "rm -rf /usr/local/tmp" >> $INSTALL_ROOT/etc/rc.local
+echo "mkdir /usr/local/tmp" >> $INSTALL_ROOT/etc/rc.local
+echo "chmod 1777 /usr/local/tmp" >> $INSTALL_ROOT/etc/rc.local
+
+# The main fedora yum repo metadata should never expire
+sed 's/metadata_expire.*/metadata_expire=never/' /etc/yum.repos.d/fedora.repo -i
+
+
+# Just making sure we didn't mess up ownerships
+chown olpc.olpc /home/olpc -R
+chown root.root /
+chmod 1755 /
+chmod 755 /etc/init.d/*
+# ADD THINGS BEFORE THIS BLOCK
