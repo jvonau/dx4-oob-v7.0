@@ -80,9 +80,9 @@ $ROOT_PARTITION_START_BLOCK,,,
 EOF
 
 	loop=$(kpartx -l $img | head -n1 | awk '{print $5}' |  sed -e 's:.*/::' )
-	disk_loop=/dev/loop$loop
-	boot_loop="/dev/mapper/loop${loop}p1"
-	root_loop="/dev/mapper/loop${loop}p2"
+	disk_loop=/dev/$loop
+	boot_loop="/dev/mapper/${loop}p1"
+	root_loop="/dev/mapper/${loop}p2"
 
 	kpartx -a -v $img 
 
