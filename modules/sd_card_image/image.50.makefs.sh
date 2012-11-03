@@ -79,9 +79,10 @@ make_image()
 $ROOT_PARTITION_START_BLOCK,,,
 EOF
 
-	disk_loop=$(kpartx -l $img | head -n1 | awk '{print $5}' |  sed -e 's/dev/dev\/mapper/g' )
-	boot_loop="${disk_loop}p1"
-	root_loop="${disk_loop}p2"
+	loop=$(kpartx -l $img | head -n1 | awk '{print $5}' |  sed -e 's:.*/::' )
+	disk_loop=/dev/loop$loop
+	boot_loop="/dev/mapper/loop${loop}p1"
+	root_loop="/dev/mapper/loop${loop}p2"
 
 	kpartx -a -v $img 
 
@@ -126,8 +127,9 @@ EOF
 
 	umount $ROOT
 	umount $BOOT
-	kpartx -d $disk_loop || :
 
+	kpartx -d $disk_loop || :
+	losetup -D || :
 	# FIXME: any value to running e2fsck now? maybe with -D ?
 }
 
