@@ -50,6 +50,7 @@ generic-logos
 #isomd5sum
 
 # GSM/CDMA USB modem support, #7172
+ModemManager
 usb_modeswitch
 usb_modeswitch-data
 
