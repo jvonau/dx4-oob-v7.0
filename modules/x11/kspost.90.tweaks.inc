@@ -120,7 +120,7 @@ mkdir /etc/httpd/logs -p
 # However, a new unique pair will be generated per XO, once the user
 # creates her sugar-profile (on first startup of the XO).
 mkdir -p /home/olpc/.sugar/default
-openssl req -new -newkey rsa:1024 -days 365 -nodes -x509 -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com" -keyout /home/olpc/.sugar/default/ssl.key -out /home/olpc/.sugar/defaul
+openssl req -new -newkey rsa:1024 -days 365 -nodes -x509 -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com" -keyout /home/olpc/.sugar/default/ssl.key -out /home/olpc/.sugar/default/ssl.key
 
 # Replace the key- and crt-path in conf-file, so that secure-transfer may be enabled.
 #
@@ -199,6 +199,53 @@ echo "chmod 1777 /usr/local/tmp" >> $INSTALL_ROOT/etc/rc.local
 
 # The main fedora yum repo metadata should never expire
 sed 's/metadata_expire.*/metadata_expire=never/' /etc/yum.repos.d/fedora.repo -i
+
+# sugar-client config file customizations
+cat << EOF > /etc/sugar-client.conf
+[main]
+# url to connect to school server's RESTfull API
+api-url = http://schoolserver:8000
+# process auto-registeration on a school server on startup; multiple argument,
+# if mentioned more than once and previously registered server's IP is different
+# from "schoolserver"'s one, process re-registrtion
+auto-register = 0
+# if, after registration, there are backups to restore on the server, process
+# restore automatically
+auto-restore = False
+# if more than 0, do regular backups with specified delay in seconds
+backup-timeout = 0
+# rsync url to backup/restore Journal
+backup-url =
+# debug logging level; multiple argument
+debug = 0
+# jabber server for Sugar collaboraiton
+jabber-url =
+# specify machine's serial number instead of detecting it
+machine-sn = anonymous
+# specify machine's UUID instead of detecting it
+machine-uuid = anonymous
+# specify user's nickname instead of detecting it
+nickname = anonymous
+# school server's FQDN, will be auto-set after registration
+schoolserver =
+# CA certificates file to get access to --stats-url via HTTPS
+stats-ca-certs =
+# if more than 0 and --stats-url specified, ping stats server with specified
+# delay in seconds to coordinate stats gathering work
+stats-timeout = 300
+# stats server's http(s) url to interact with; if omited, any stats related
+# functionality is disabled
+stats-url = http://sugardextrose.org:8000
+# current user's unique identity; needs to be set only from profile
+# configuration file; will be auto-created on initial registration
+uid =
+# optional command-line arguments to pass to a packager while updating the
+# system
+update-args = --disablerepo=* --enablerepo=dextrose
+# if more than 0, do regular unattended updates with specified delay in seconds
+update-timeout = 86400
+
+EOF
 
 
 # Just making sure we didn't mess up ownerships
