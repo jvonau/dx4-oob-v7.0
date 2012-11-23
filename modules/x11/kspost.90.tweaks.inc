@@ -235,7 +235,7 @@ stats-ca-certs =
 stats-timeout = 300
 # stats server's http(s) url to interact with; if omited, any stats related
 # functionality is disabled
-stats-url = http://sugardextrose.org:8000
+stats-url = http://stats.sugardextrose.org:8000
 # current user's unique identity; needs to be set only from profile
 # configuration file; will be auto-created on initial registration
 uid =
@@ -246,7 +246,9 @@ update-args = --disablerepo=* --enablerepo=dextrose
 update-timeout = 86400
 
 EOF
+echo "sugar-client session" >> /home/olpc/.xsession
 
+sed '1s/env\ //' /usr/bin/sugar-client* -i
 
 # Just making sure we didn't mess up ownerships
 chown olpc.olpc /home/olpc -R
