@@ -192,6 +192,25 @@ gconftool-2 --direct --config-source=xml:readwrite:/etc/gconf/gconf.xml.defaults
 # enable ad-hoc icon 
 gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --type bool --set /desktop/sugar/network/adhoc true
 
+# From http://sugardextrose.org/projects/dextrose/wiki/Gconf-keys
+# gconf keys for dx4-international build
+
+#2662 Lease-Duration information in "My Settings" -> "About My Computer" 
+gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --set /desktop/sugar/extensions/aboutcomputer/display_lease --type bool True
+
+#2669 System-Resources feature (gconf-controllable)
+gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --set /desktop/sugar/frame/show_network_resources --type bool True
+
+#2671 Add "nm-connection-editor" in "My Settings" -> "Network" (gconf-controllable)
+gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --set /desktop/sugar/extensions/network/show_nm_connection_editor --type bool True
+
+#2663 XO-Model-Number in "My Settings" -> "About My Computer" 
+gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --set /desktop/sugar/extensions/aboutcomputer/display_model --type bool True
+
+
+
+
+
 # Create an alternative tmp dir that is not in ramdisk, empty on every boot
 echo "rm -rf /usr/local/tmp" >> $INSTALL_ROOT/etc/rc.local
 echo "mkdir /usr/local/tmp" >> $INSTALL_ROOT/etc/rc.local
