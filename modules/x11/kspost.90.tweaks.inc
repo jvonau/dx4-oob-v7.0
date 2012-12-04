@@ -108,6 +108,12 @@ SearchAndReplaceRegex $filename "<CAPS> = 66;" "<CAPS> = 133;"
 mkdir -p /var/www/web1/web/.Sugar-Metadata
 chmod -R 0777 /var/www/web1/
 
+# From Fedora-18 onwards, we also need to specify a "lock"-file, to be used
+# by "DavLockDB" directive in httpd-virtualhost(s).
+mkdir -p /var/www/lock
+touch /var/www/lock/lock_file
+chmod -R 0777 /var/www/lock
+
 # Some necessary tweaks in "httpd" service.
 #
 rm /etc/httpd/logs -f
@@ -120,7 +126,7 @@ mkdir /etc/httpd/logs -p
 # However, a new unique pair will be generated per XO, once the user
 # creates her sugar-profile (on first startup of the XO).
 mkdir -p /home/olpc/.sugar/default
-openssl req -new -newkey rsa:1024 -days 365 -nodes -x509 -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com" -keyout /home/olpc/.sugar/default/ssl.key -out /home/olpc/.sugar/default/ssl.key
+openssl req -new -newkey rsa:1024 -days 365 -nodes -x509 -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com" -keyout /home/olpc/.sugar/default/ssl.key -out /home/olpc/.sugar/default/ssl.crt
 
 # Replace the key- and crt-path in conf-file, so that secure-transfer may be enabled.
 #
@@ -146,6 +152,7 @@ cat << EOF >> /etc/httpd/conf.d/ssl.conf
         </Directory>
 
         Alias /webdav /var/www/web1/web
+        DavLockDB /var/www/lock/lock_file
 
         <Location /webdav>
             DAV On
