@@ -55,9 +55,9 @@ def main():
         use_auth = client.get_bool('%s/use_authentication' % sys_dir)
         if use_auth is True:
             auth_user = client.get_string('%s/authentication_user' % sys_dir)
-            yumtmp.write('proxy_username %s\n' % auth_user)
+            yumtmp.write('proxy_username=%s\n' % auth_user)
             auth_pass = client.get_string('%s/authentication_password' % sys_dir)
-            yumtmp.write('proxy_password %s\n' % auth_pass)
+            yumtmp.write('proxy_password=%s\n' % auth_pass)
     else:
         pass
     yumtmp.close()
