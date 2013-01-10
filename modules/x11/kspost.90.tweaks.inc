@@ -191,6 +191,9 @@ ln -s /usr/lib/libcrypto.so    /usr/lib/libcrypto.so.8
 # disable login sound
 rm /usr/share/gnome/autostart/libcanberra-login-sound.desktop
 
+# sdxo#2849 Use the same proxy for all protocols
+gsettings set org.gnome.system.proxy use-same-proxy false
+
 # Create an alternative tmp dir that is not in ramdisk, empty on every boot
 echo "rm -rf /usr/local/tmp" >> $INSTALL_ROOT/etc/rc.local
 echo "mkdir /usr/local/tmp" >> $INSTALL_ROOT/etc/rc.local
