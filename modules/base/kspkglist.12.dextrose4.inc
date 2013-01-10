@@ -19,4 +19,5 @@ ntp
 ntpdate
 # sdxo#2722 , vte3 is needed by Terminal and Pippy activities
 vte3
-
+# sdxo#2834 , schema for proxy-gconf keys
+gnome-vfs2
