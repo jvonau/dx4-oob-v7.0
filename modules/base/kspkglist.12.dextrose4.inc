@@ -21,3 +21,5 @@ ntpdate
 vte3
 # sdxo#2834 , schema for proxy-gconf keys
 gnome-vfs2
+# sdxo#2764 , automatic proxy configuration
+libproxy-mozjs
