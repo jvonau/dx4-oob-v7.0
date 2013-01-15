@@ -65,10 +65,13 @@ def main():
 main()
 
 EOF
+
 chmod 755 /usr/bin/yumfix
 
 # run the above from ~/.xsession
-echo "/usr/bin/yumfix" > /home/olpc/.xsession
+# We add it to the current .xsession 
+# Fixes sdxo#2387 
+echo "/usr/bin/yumfix" >> /home/olpc/.xsession
 
 echo "include=/tmp/yum.conf.mod" >> /etc/yum.conf
 
