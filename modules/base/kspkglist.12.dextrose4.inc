@@ -23,3 +23,5 @@ vte3
 gnome-vfs2
 # sdxo#2764 , automatic proxy configuration
 libproxy-mozjs
+# sdxo#2726 Write Activity fails to load on xo1
+abiword
