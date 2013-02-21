@@ -20,4 +20,5 @@ gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults
 #sdxo#2663 XO-Model-Number in "My Settings" -> "About My Computer"
 gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --set /desktop/sugar/extensions/aboutcomputer/display_model --type bool True
 
-
+#sdxo#3047 Tam tam mini activity does not occupy full screen area
+gconftool-2 --direct --config-source xml:readwrite:/etc/gconf/gconf.xml.defaults --set /desktop/sugar/activities_not_requiring_osk_accumulation --type list --list-type string ['org.laptop.TamTamMini','org.laptop.TamTamEdit','org.laptop.TamTamJam','org.laptop.TamTamSynthLab']
