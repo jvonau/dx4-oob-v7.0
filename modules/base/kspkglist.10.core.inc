@@ -23,11 +23,12 @@ rsyslog
 strace
 
 # OLPC technologies and customization packages
+olpc-contents
 olpc-utils
 olpc-netutils
 plymouth-theme-olpc
 PolicyKit-olpc
-ds-backup-client
+# ds-backup-client
 olpc-powerd
 olpc-powerd-dbus
 
