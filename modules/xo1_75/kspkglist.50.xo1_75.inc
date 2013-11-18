@@ -1,4 +1,4 @@
-olpc-firmware-q4
+olpc-firmware*
 libertas-sd8686-firmware
 xorg-x11-drv-dove
 
