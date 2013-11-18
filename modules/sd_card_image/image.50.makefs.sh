@@ -79,15 +79,20 @@ make_image()
 $ROOT_PARTITION_START_BLOCK,,,
 EOF
 
-	loop=$(kpartx -l $img | head -n1 | awk '{print $5}' |  sed -e 's:.*/::' )
-	disk_loop=/dev/$loop
-	boot_loop="/dev/mapper/${loop}p1"
-	root_loop="/dev/mapper/${loop}p2"
+	disk_loop=$(losetup --show --find --partscan $img)
+	boot_loop="${disk_loop}p1"
+	root_loop="${disk_loop}p2"
 
-	kpartx -a -v $img 
+	# Work around occasional failure for loop partitions to appear
+	# http://marc.info/?l=linux-kernel&m=134271282127702&w=2
+	local i=0
+	while ! [ -e "$boot_loop" ]; do
+		partx -a -v $disk_loop
+		sleep 1
+		(( ++i ))
+		[ $i -ge 10 ] && break
+	done
 
-	echo "mke2fs -O dir_index,^resize_inode -L Boot -F $boot_loop"
-	
 	echo "Create filesystems..."
 	mke2fs -O dir_index,^resize_inode -L Boot -F $boot_loop
 	mount $boot_loop $BOOT
@@ -127,10 +132,8 @@ EOF
 
 	umount $ROOT
 	umount $BOOT
-
-	kpartx -d $disk_loop || :
-	losetup -d $disk_loop || :
-	# FIXME: any value to running e2fsck now? maybe with -D ?
+        losetup -d $disk_loop || :
+        # FIXME: any value to running e2fsck now? maybe with -D ?
 }
 
 
