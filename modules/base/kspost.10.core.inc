@@ -91,6 +91,9 @@ for i in fedora-loadmodules mdmonitor-takeover systemd-readahead-collect \
 	ln -s /dev/null /etc/systemd/system/$i.service
 done
 
+# enable certain systemd units
+systemctl enable ds-backup.timer
+
 #prefdm tweaks
 #sed -i -e 's/respawn limit 10/respawn limit 3/' /etc/init/prefdm.conf
 
@@ -162,9 +165,6 @@ EOF
 # https://bugzilla.redhat.com/show_bug.cgi?id=546215
 rm -f /etc/avahi/etc/localtime
 
-# kill a load of non-interesting anacron tasks (#10247)
-chmod -x /etc/cron.daily/logrotate
-
 # Fedora's initscripts packages writes /etc/adjtime without a 3rd line,
 # which makes hwclock assume that the hardware clock has local time.
 # this will be fixed in util-linux-2.20, where it will default to UTC.
@@ -228,6 +228,14 @@ sed -i -e 's/EnableWattsUpPro=true/EnableWattsUpPro=false/' \
 	-e 's/IgnoreLid=false/IgnoreLid=true/' \
 	/etc/UPower/UPower.conf
 
+# ignore lid events in logind too (#12504)
+sed -i \
+	-e "s/#HandleSuspendKey=.*/HandleSuspendKey=ignore/" \
+	-e "s/#HandlePowerKey=.*/HandlePowerKey=ignore/" \
+	-e "s/#HandleHibernateKey=.*/HandleHibernateKey=ignore/" \
+	-e "s/#HandleLidSwitch=.*/HandleLidSwitch=ignore/" \
+	/etc/systemd/logind.conf
+
 # Tracker has snuck in and is autostarted by default.
 # I don't think we want this.
 # https://bugzilla.redhat.com/show_bug.cgi?id=821952
@@ -237,3 +245,9 @@ rm -f /etc/xdg/autostart/tracker*.desktop 2>/dev/null
 # Disable it, it's not interesting for us
 rm -f /var/log/wtmp
 ln -s /dev/null /etc/systemd/system/systemd-update-utmp-shutdown.service
+
+# ping requires CAP_NET_RAW and now ships with file capabilities to make
+# this happen. however, we do not support file capabilities in our update
+# system. as this is a useful network diagnosis tool, and used by ds-backup,
+# make it available to non-root users again (#12427)
+chmod u+s /usr/bin/ping
