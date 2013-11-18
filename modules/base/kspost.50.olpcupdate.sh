@@ -4,5 +4,5 @@
 versioned_fs=$(read_config base versioned_fs)
 
 if [ "$versioned_fs" = 1 ]; then
-	echo systemctl enable olpc-update-query.timer
+	echo #systemctl enable olpc-update-query.timer
 fi
