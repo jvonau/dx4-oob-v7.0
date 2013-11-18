@@ -24,8 +24,6 @@ csound-python
 pygame
 python-alsaaudio
 squeak-vm
-
-# Terminal
 vte3
 
 # dependencies for Epub support in Read
